@@ -1,0 +1,68 @@
+name: Build Clean Ad-Free Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Project Files
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java 17 (Required for Android Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Capacitor Dependencies
+        run: npm install
+
+      - name: Add & Sync Android Platform
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Apply Custom Version, Icons & WebView Settings
+        run: |
+          # Update versionCode and versionName in build.gradle
+          sed -i 's/versionCode 1/versionCode 1/g' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "1.0.0"/g' android/app/build.gradle
+
+          # Copy custom app icon to Android mipmap folders
+          if [ -f "www/icon.png" ]; then
+            for dir in android/app/src/main/res/mipmap-*; do
+              cp www/icon.png "$dir/ic_launcher.png"
+              cp www/icon.png "$dir/ic_launcher_round.png"
+            done
+          fi
+
+          # Configure Fullscreen / WakeLock / Zoom flags in MainActivity if needed
+          MAIN_ACT=$(find android/app/src/main/java -name "MainActivity.java")
+          if [ "true" = "true" ]; then
+            sed -i 's/super.onCreate(savedInstanceState);/super.onCreate(savedInstanceState); getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);/g' "$MAIN_ACT"
+          fi
+          if [ "false" = "true" ]; then
+            sed -i 's/super.onCreate(savedInstanceState);/super.onCreate(savedInstanceState); getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN, android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);/g' "$MAIN_ACT"
+          fi
+
+      - name: Build Debug APK (Zero Ads & Zero Watermarks)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload Final APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-lock-v1.0.0-clean-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
