@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>Lock Screen</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body, html {
+    width: 100%;
+    height: 100%;
+    background-color: #050508;
+    color: #ffffff;
+    overflow: hidden;
+  }
+
+  /* Lock Screen Container */
+  #lockScreen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 20%, #1a1f35 0%, #090a0f 65%, #000000 100%);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16px 24px 28px;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  #lockScreen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.38);
+    z-index: 0;
+  }
+
+  .layer {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Top Status Bar */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.88);
+    padding: 2px 4px;
+  }
+
+  .status-icons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Clock & Date Area */
+  .clock-section {
+    text-align: center;
+    margin-top: 22px;
+    cursor: pointer;
+  }
+
+  .lock-icon {
+    width: 22px;
+    height: 22px;
+    margin: 0 auto 10px;
+    fill: rgba(255, 255, 255, 0.9);
+    transition: transform 0.2s ease;
+  }
+
+  .time-display {
+    font-size: 72px;
+    font-weight: 300;
+    letter-spacing: -1px;
+    line-height: 1;
+    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  }
+
+  .date-display {
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 8px;
+    letter-spacing: 0.3px;
+  }
+
+  /* PIN Prompt & Dots */
+  .pin-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+  }
+
+  .pin-prompt {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.88);
+    margin-bottom: 16px;
+    height: 20px;
+    letter-spacing: 0.3px;
+    transition: color 0.2s;
+  }
+
+  .pin-prompt.error {
+    color: #ff6b6b;
+  }
+
+  .dots-container {
+    display: flex;
+    gap: 18px;
+    height: 16px;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 1.8px solid rgba(255, 255, 255, 0.85);
+    background: transparent;
+    transition: all 0.15s ease;
+  }
+
+  .dot.filled {
+    background: #ffffff;
+    border-color: #ffffff;
+    transform: scale(1.12);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-12px); }
+    40% { transform: translateX(12px); }
+    60% { transform: translateX(-8px); }
+    80% { transform: translateX(8px); }
+  }
+
+  .shake {
+    animation: shake 0.38s ease;
+  }
+
+  /* Numeric Keypad */
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 76px);
+    gap: 14px 24px;
+    justify-content: center;
+    margin: 0 auto;
+  }
+
+  .key {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.1s ease;
+  }
+
+  .key:active {
+    background: rgba(255, 255, 255, 0.32);
+    transform: scale(0.94);
+  }
+
+  .key-num {
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.1;
+  }
+
+  .key-sub {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.65);
+    margin-top: 2px;
+    height: 11px;
+  }
+
+  .key-action {
+    background: transparent;
+    border: none;
+    backdrop-filter: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .key-action:active {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Bottom Bar + Subtle Peek Indicator */
+  .bottom-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    margin-top: 8px;
+  }
+
+  .shortcut-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .shortcut-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: #ffffff;
+  }
+
+  .emergency-btn {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    letter-spacing: 0.4px;
+  }
+
+  /* Discreet Live Peek Micro-Text at very bottom */
+  .stealth-peek {
+    position: fixed;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.22);
+    letter-spacing: 2px;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Unlocked Reveal Screen */
+  #unlockedScreen {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, #141414 0%, #000000 100%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    text-align: center;
+    z-index: 20;
+  }
+
+  .reveal-badge {
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #d4af37;
+    margin-bottom: 14px;
+    opacity: 0.85;
+  }
+
+  .reveal-title {
+    font-size: 36px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff3b0, #ffd700, #b8860b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 25px rgba(255, 215, 0, 0.25);
+    margin-bottom: 18px;
+    line-height: 1.3;
+  }
+
+  .reveal-pin-box {
+    font-size: 22px;
+    color: #ffffff;
+    background: rgba(255, 215, 0, 0.08);
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    padding: 12px 26px;
+    border-radius: 12px;
+    margin-bottom: 35px;
+    letter-spacing: 3px;
+  }
+
+  .relock-btn {
+    padding: 12px 28px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* Secret Mentalist Settings Modal */
+  #secretModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(12px);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 22px;
+    z-index: 50;
+    overflow-y: auto;
+  }
+
+  .modal-card {
+    background: #12131a;
+    border: 1px solid #d4af37;
+    border-radius: 16px;
+    padding: 20px;
+    max-width: 400px;
+    width: 100%;
+    margin: 0 auto;
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.15);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
+    color: #ffd700;
+    letter-spacing: 0.5px;
+  }
+
+  .close-modal {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    color: #aaaaaa;
+    margin-bottom: 6px;
+  }
+
+  .form-group select,
+  .form-group input[type="text"],
+  .form-group input[type="number"],
+  .form-group input[type="file"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #1c1e29;
+    color: #ffffff;
+    font-size: 14px;
+  }
+
+  .peek-history-box {
+    background: #0b0c10;
+    border: 1px dashed rgba(255, 215, 0, 0.4);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #ffd700;
+    text-align: center;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .save-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #ffd700, #b8860b);
+    color: #000000;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .reset-wp-btn {
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    background: transparent;
+    color: #ffffff;
+    font-size: 13px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+  <!-- LOCK SCREEN -->
+  <div id="lockScreen">
+    <!-- Status Bar -->
+    <div class="status-bar layer">
+      <span id="carrierName">5G</span>
+      <div class="status-icons">
+        <span>VoLTE</span>
+        <span>100%</span>
+      </div>
+    </div>
+
+    <!-- Clock & Date (Double-tap here for Secret Menu) -->
+    <div class="clock-section layer" id="clockTrigger">
+      <svg class="lock-icon" viewBox="0 0 24 24">
+        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+      </svg>
+      <div class="time-display" id="timeDisplay">12:00</div>
+      <div class="date-display" id="dateDisplay">Thu, Nov 26</div>
+    </div>
+
+    <!-- PIN Dots & Keypad -->
+    <div class="pin-section layer">
+      <div class="pin-prompt" id="pinPrompt">Enter PIN</div>
+      <div class="dots-container" id="dotsContainer"></div>
+
+      <div class="keypad">
+        <div class="key" data-num="1"><span class="key-num">1</span><span class="key-sub"></span></div>
+        <div class="key" data-num="2"><span class="key-num">2</span><span class="key-sub">ABC</span></div>
+        <div class="key" data-num="3"><span class="key-num">3</span><span class="key-sub">DEF</span></div>
+        <div class="key" data-num="4"><span class="key-num">4</span><span class="key-sub">GHI</span></div>
+        <div class="key" data-num="5"><span class="key-num">5</span><span class="key-sub">JKL</span></div>
+        <div class="key" data-num="6"><span class="key-num">6</span><span class="key-sub">MNO</span></div>
+        <div class="key" data-num="7"><span class="key-num">7</span><span class="key-sub">PQRS</span></div>
+        <div class="key" data-num="8"><span class="key-num">8</span><span class="key-sub">TUV</span></div>
+        <div class="key" data-num="9"><span class="key-num">9</span><span class="key-sub">WXYZ</span></div>
+        <div class="key key-action" id="clearBtn">Clear</div>
+        <div class="key" data-num="0"><span class="key-num">0</span><span class="key-sub">+</span></div>
+        <div class="key key-action" id="delBtn">⌫</div>
+      </div>
+    </div>
+
+    <!-- Bottom Shortcuts -->
+    <div class="bottom-bar layer">
+      <div class="shortcut-btn" id="torchBtn" title="Flashlight">
+        <svg viewBox="0 0 24 24"><path d="M6 2h12v3l-2 3v14H8V8L6 5V2zm6 11c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+      </div>
+      <div class="emergency-btn" id="emergencyBtn">Emergency</div>
+      <div class="shortcut-btn" id="camBtn" title="Camera">
+        <svg viewBox="0 0 24 24"><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Discreet Live Peek Output -->
+  <div class="stealth-peek" id="stealthPeek"></div>
+
+  <!-- UNLOCKED REVEAL SCREEN -->
+  <div id="unlockedScreen">
+    <div class="reveal-badge">SYSTEM UNLOCKED</div>
+    <div class="reveal-title" id="revealMessageText">I KNEW YOUR PASSCODE!</div>
+    <div class="reveal-pin-box" id="revealPinDisplay">PIN: 0000</div>
+    <button class="relock-btn" id="relockBtn">Lock Again</button>
+  </div>
+
+  <!-- SECRET SETTINGS MODAL (Double-tap Clock to open) -->
+  <div id="secretModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>✨ Mentalist Control</h2>
+        <button class="close-modal" id="closeModalBtn">&times;</button>
+      </div>
+
+      <div class="peek-history-box">
+        Last Typed PIN: <strong id="lastPeekVal">None</strong>
+      </div>
+
+      <div class="form-group">
+        <label>Performance Mode</label>
+        <select id="modeSelect">
+          <option value="force">1. Force Unlock (Any PIN Unlocks)</option>
+          <option value="exact">2. Exact Match (Only Secret PIN Unlocks)</option>
+          <option value="peek">3. Live Peek (Fails & Shows PIN Subtly)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>PIN Length (4 or 6 Digits)</label>
+        <select id="pinLengthSelect">
+          <option value="4">4 Digits</option>
+          <option value="6">6 Digits</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Target Secret PIN (For Exact Match Mode)</label>
+        <input type="number" id="targetPinInput" placeholder="e.g. 2580" value="2580">
+      </div>
+
+      <div class="form-group">
+        <label>Unlock Reveal Message</label>
+        <input type="text" id="revealMsgInput" value="I KNEW YOUR PASSCODE!">
+      </div>
+
+      <div class="form-group">
+        <label>Custom Lock Screen Wallpaper</label>
+        <input type="file" id="wallpaperInput" accept="image/*">
+      </div>
+
+      <div class="btn-row">
+        <button class="reset-wp-btn" id="resetWpBtn">Reset BG</button>
+        <button class="save-btn" id="saveSettingsBtn">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // State & Default Config
+  let config = {
+    mode: localStorage.getItem('ml_mode') || 'force',
+    pinLength: parseInt(localStorage.getItem('ml_len')) || 4,
+    targetPin: localStorage.getItem('ml_target') || '2580',
+    revealMsg: localStorage.getItem('ml_msg') || 'I KNEW YOUR PASSCODE!',
+    wallpaper: localStorage.getItem('ml_wp') || '',
+    lastPeek: localStorage.getItem('ml_peek') || 'None'
+  };
+
+  let currentInput = '';
+
+  // Elements
+  const lockScreen = document.getElementById('lockScreen');
+  const dotsContainer = document.getElementById('dotsContainer');
+  const pinPrompt = document.getElementById('pinPrompt');
+  const stealthPeek = document.getElementById('stealthPeek');
+  const unlockedScreen = document.getElementById('unlockedScreen');
+  const revealMessageText = document.getElementById('revealMessageText');
+  const revealPinDisplay = document.getElementById('revealPinDisplay');
+  const secretModal = document.getElementById('secretModal');
+
+  // Apply Saved Wallpaper
+  function applyWallpaper() {
+    if (config.wallpaper) {
+      lockScreen.style.backgroundImage = `url('${config.wallpaper}')`;
+    } else {
+      lockScreen.style.backgroundImage = 'radial-gradient(circle at 50% 20%, #1a1f35 0%, #090a0f 65%, #000000 100%)';
+    }
+  }
+
+  // Render PIN Dots
+  function renderDots() {
+    dotsContainer.innerHTML = '';
+    for (let i = 0; i < config.pinLength; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (i < currentInput.length ? ' filled' : '');
+      dotsContainer.appendChild(dot);
+    }
+  }
+
+  // Live Clock Update
+  function updateClock() {
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    hours = hours % 12 || 12;
+    document.getElementById('timeDisplay').textContent = `${hours}:${minutes}`;
+
+    const options = { weekday: 'short', month: 'short', day: 'numeric' };
+    document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-US', options);
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Vibrate Helper
+  function buzz(ms = 35) {
+    if (navigator.vibrate) navigator.vibrate(ms);
+  }
+
+  // Handle Digit Press
+  document.querySelectorAll('.key[data-num]').forEach(key => {
+    key.addEventListener('click', () => {
+      if (currentInput.length >= config.pinLength) return;
+      buzz(25);
+      currentInput += key.getAttribute('data-num');
+      renderDots();
+
+      if (currentInput.length === config.pinLength) {
+        setTimeout(evaluatePin, 180);
+      }
+    });
+  });
+
+  // Clear & Delete
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    buzz(20);
+    currentInput = '';
+    renderDots();
+  });
+
+  document.getElementById('delBtn').addEventListener('click', () => {
+    buzz(20);
+    currentInput = currentInput.slice(0, -1);
+    renderDots();
+  });
+
+  // Evaluate PIN based on Mentalism Mode
+  function evaluatePin() {
+    const entered = currentInput;
+    config.lastPeek = entered;
+    localStorage.setItem('ml_peek', entered);
+    document.getElementById('lastPeekVal').textContent = entered;
+
+    if (config.mode === 'force') {
+      unlockSuccess(entered);
+    } else if (config.mode === 'exact') {
+      if (entered === config.targetPin.slice(0, config.pinLength)) {
+        unlockSuccess(entered);
+      } else {
+        triggerError();
+      }
+    } else if (config.mode === 'peek') {
+      // Show subtle peek at bottom + fail so spectator hands phone back
+      stealthPeek.textContent = entered;
+      triggerError();
+    }
+  }
+
+  function unlockSuccess(pin) {
+    buzz([40, 40, 60]);
+    revealMessageText.textContent = config.revealMsg;
+    revealPinDisplay.textContent = `PIN: ${pin}`;
+    unlockedScreen.style.display = 'flex';
+    currentInput = '';
+    renderDots();
+  }
+
+  function triggerError() {
+    buzz([60, 50, 60]);
+    pinPrompt.textContent = 'Wrong PIN. Try again.';
+    pinPrompt.classList.add('error');
+    dotsContainer.classList.add('shake');
+
+    setTimeout(() => {
+      dotsContainer.classList.remove('shake');
+      currentInput = '';
+      renderDots();
+    }, 420);
+
+    setTimeout(() => {
+      pinPrompt.textContent = 'Enter PIN';
+      pinPrompt.classList.remove('error');
+    }, 1800);
+  }
+
+  // Re-lock Button
+  document.getElementById('relockBtn').addEventListener('click', () => {
+    unlockedScreen.style.display = 'none';
+    stealthPeek.textContent = '';
+  });
+
+  // Secret Double-Tap on Clock to open Settings
+  let lastTap = 0;
+  document.getElementById('clockTrigger').addEventListener('click', () => {
+    const now = Date.now();
+    if (now - lastTap < 350) {
+      openSecretSettings();
+    }
+    lastTap = now;
+  });
+
+  function openSecretSettings() {
+    document.getElementById('modeSelect').value = config.mode;
+    document.getElementById('pinLengthSelect').value = String(config.pinLength);
+    document.getElementById('targetPinInput').value = config.targetPin;
+    document.getElementById('revealMsgInput').value = config.revealMsg;
+    document.getElementById('lastPeekVal').textContent = config.lastPeek;
+    secretModal.style.display = 'flex';
+  }
+
+  document.getElementById('closeModalBtn').addEventListener('click', () => {
+    secretModal.style.display = 'none';
+  });
+
+  // Wallpaper Upload
+  document.getElementById('wallpaperInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      config.wallpaper = evt.target.result;
+      localStorage.setItem('ml_wp', config.wallpaper);
+      applyWallpaper();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('resetWpBtn').addEventListener('click', () => {
+    config.wallpaper = '';
+    localStorage.removeItem('ml_wp');
+    applyWallpaper();
+  });
+
+  // Save Settings
+  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+    config.mode = document.getElementById('modeSelect').value;
+    config.pinLength = parseInt(document.getElementById('pinLengthSelect').value);
+    config.targetPin = document.getElementById('targetPinInput').value || '2580';
+    config.revealMsg = document.getElementById('revealMsgInput').value || 'I KNEW YOUR PASSCODE!';
+
+    localStorage.setItem('ml_mode', config.mode);
+    localStorage.setItem('ml_len', config.pinLength);
+    localStorage.setItem('ml_target', config.targetPin);
+    localStorage.setItem('ml_msg', config.revealMsg);
+
+    currentInput = '';
+    stealthPeek.textContent = '';
+    renderDots();
+    secretModal.style.display = 'none';
+  });
+
+  // Init
+  applyWallpaper();
+  renderDots();
+</script>
+</body>
+</html>
